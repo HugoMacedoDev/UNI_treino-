@@ -1,0 +1,52 @@
+{
+  "name": "unitreino",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start": "nodemon ./server/app.js",
+    "dev": "vite ./client/",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.433.0",
+    "@aws-sdk/lib-storage": "^3.821.0",
+    "axios": "^1.15.0",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "csv-parser": "^3.0.0",
+    "dayjs": "^1.11.19",
+    "docusign-esign": "^6.5.1",
+    "dotenv": "^16.0.3",
+    "exceljs": "^4.4.0",
+    "express": "^4.18.2",
+    "express-list-endpoints": "^6.0.0",
+    "fs": "^0.0.1-security",
+    "glob": "^10.3.10",
+    "gm": "^1.25.0",
+    "googleapis": "^153.0.0",
+    "https": "^1.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "luxon": "^3.7.2",
+    "mailtrap": "^4.6.0",
+    "mongodb": "^7.2.0",
+    "mongoose": "^9.6.1",
+    "multer": "^1.4.5-lts.1",
+    "p-limit": "^3.1.0",
+    "path": "^0.12.7",
+    "pg": "^8.8.0",
+    "prompt-sync": "^4.2.0",
+    "sequelize": "^6.37.8",
+    "sharp": "^0.32.6",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "tesseract.js": "^4.1.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^2.0.20",
+    "supertest": "^6.3.3",
+    "vite": "^8.0.4"
+  }
+}
