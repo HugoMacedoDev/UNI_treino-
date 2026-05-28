@@ -14,9 +14,33 @@ export default function sendResetPasswordEmail(recipient, token) {
     .send({
       from: sender,
       to: recipient,
-      template: "views/passwordResetEmail",
+      subject: "UniTreino - Redefinição de senha",
+      html: `
+    <table>
+      <tr>
+        <td class="content" style="font-family: sans-serif; padding: 20px; color: #333;">
+          <p>Olá,</p>
+          <p>
+            Recebemos uma solicitação para redefinir a senha da sua conta. Use
+            o token abaixo para concluir o processo. Ele é válido por apenas 1
+            hora.
+          </p>
+
+          <!-- Box do Token -->
+          <div class="token-box" style="background-color: #f4f4f5; border: 1px solid #e4e4e7; padding: 12px; font-family: monospace; font-size: 16px; text-align: center; border-radius: 6px; margin: 20px 0; font-weight: bold; letter-spacing: 1px;">
+            ${token}
+          </div>
+
+          <p>
+            Se você não solicitou a alteração de senha, ignore este e-mail por
+            segurança. Nenhuma alteração será feita.
+          </p>
+          <p>Atenciosamente,<br />Equipe de Suporte</p>
+        </td>
+      </tr>
+    </table>
+  `,
       category: "Integration Test",
-      context: { token },
     })
     .then(console.log, console.error);
 }

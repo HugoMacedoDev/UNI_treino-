@@ -28,6 +28,8 @@
 
   --shadow-sm:  0 1px 3px rgba(0,0,0,.08);
   --shadow-md:  0 4px 12px rgba(0,0,0,.10);
+  --shadow-hover: 0 8px 18px rgba(15, 23, 42, .12);
+  --focus-ring: 0 0 0 3px rgba(25, 156, 255, .18);
 }
 
 html, body, #root { height: 100%; width: 100%; }
@@ -41,6 +43,92 @@ body {
 
 a { color: inherit; text-decoration: none; }
 button { cursor: pointer; border: none; background: none; font-family: var(--font); }
+
+:where(
+  .btn-login,
+  .btn-start-chat,
+  .auth-btn,
+  .auth-google-btn,
+  .sidebar-icon-btn,
+  .sidebar-acessar-lista-btn,
+  .sidebar-voltar-btn,
+  .navbar-hamburger,
+  .navbar-notif-btn,
+  .btn-logout,
+  .stop-generation-btn,
+  .chat-input-icon-btn,
+  .chat-send-btn,
+  .message-retry-btn,
+  .perfil-editar-btn,
+  .perfil-voltar,
+  .perfil-avatar-edit,
+  .perfil-acao-link,
+  .btn-secundario,
+  .btn-perigo,
+  .btn-voltar-top,
+  .crud-criar-btn,
+  .crud-acao-btn,
+  .chat-add-treino-btn,
+  .auth-required-login-btn
+) {
+  transition:
+    background-color .16s ease,
+    background .16s ease,
+    color .16s ease,
+    border-color .16s ease,
+    box-shadow .16s ease,
+    transform .16s ease,
+    opacity .16s ease;
+}
+
+:where(
+  .btn-login,
+  .btn-start-chat,
+  .auth-btn,
+  .auth-google-btn,
+  .sidebar-acessar-lista-btn,
+  .stop-generation-btn,
+  .chat-send-btn--active,
+  .message-retry-btn,
+  .btn-secundario,
+  .btn-perigo,
+  .crud-criar-btn,
+  .chat-add-treino-btn,
+  .auth-required-login-btn
+):where(:hover, :focus-visible):not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-hover);
+}
+
+:where(
+  .sidebar-icon-btn,
+  .navbar-hamburger,
+  .navbar-notif-btn,
+  .chat-input-icon-btn,
+  .crud-acao-btn,
+  .perfil-avatar-edit
+):where(:hover, :focus-visible):not(:disabled) {
+  transform: translateY(-1px) scale(1.04);
+}
+
+:where(button, a):focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+:where(button, a):active:not(:disabled) {
+  transform: translateY(0) scale(.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(button, a) {
+    transition: none !important;
+  }
+
+  :where(button, a):where(:hover, :focus-visible, :active) {
+    transform: none !important;
+  }
+}
 
 .navbar-wrapper {
   position: sticky;
@@ -1085,6 +1173,33 @@ button { cursor: pointer; border: none; background: none; font-family: var(--fon
   margin-top: 4px;
 }
 
+.auth-required-overlay {
+  z-index: 1000;
+  background: rgba(15, 23, 42, .58);
+  backdrop-filter: blur(2px);
+}
+
+.auth-required-card {
+  max-width: 420px;
+}
+
+.auth-required-actions {
+  flex-wrap: wrap;
+}
+
+.auth-required-login-btn {
+  padding: 8px 20px;
+  background: var(--brand-blue);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.auth-required-login-btn:hover {
+  background: var(--brand-blue-dark);
+}
+
 .btn-secundario {
   padding: 8px 18px;
   border: 1px solid var(--border-input);
@@ -1094,18 +1209,6 @@ button { cursor: pointer; border: none; background: none; font-family: var(--fon
   transition: background .15s;
 }
 .btn-secundario:hover { background: var(--bg-hover); }
-
-.chat-login-modal-btn {
-  padding: 8px 18px;
-  background: var(--brand-blue);
-  color: #fff;
-  border-radius: var(--radius-sm);
-  font-size: 0.88rem;
-  font-weight: 500;
-  transition: background .15s, transform .1s;
-}
-.chat-login-modal-btn:hover { background: var(--brand-blue-dark); }
-.chat-login-modal-btn:active { transform: scale(0.97); }
 
 .btn-perigo {
   padding: 8px 18px;
@@ -1327,222 +1430,3 @@ button { cursor: pointer; border: none; background: none; font-family: var(--fon
   opacity: 0.45;
   cursor: not-allowed;
 }
-
-/* ══════════════════════════════════════════
-   ANIMAÇÕES DE BOTÕES
-══════════════════════════════════════════ */
-
-/* --- Keyframes --- */
-@keyframes btnRipple {
-  0%   { transform: scale(0);   opacity: .45; }
-  80%  { transform: scale(2.8); opacity: .1; }
-  100% { transform: scale(3.2); opacity: 0; }
-}
-
-@keyframes btnPulseRing {
-  0%   { box-shadow: 0 0 0 0 rgba(25, 156, 255, .45); }
-  70%  { box-shadow: 0 0 0 8px rgba(25, 156, 255, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(25, 156, 255, 0); }
-}
-
-@keyframes btnShimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position:  200% center; }
-}
-
-@keyframes btnBounceIn {
-  0%   { transform: scale(1); }
-  40%  { transform: scale(0.94); }
-  70%  { transform: scale(1.04); }
-  100% { transform: scale(1); }
-}
-
-/* --- Base ripple helper (aplica em todos os btns relevantes) --- */
-.btn-login,
-.btn-start-chat,
-.auth-btn,
-.auth-google-btn,
-.btn-secundario,
-.btn-perigo,
-.chat-login-modal-btn,
-.crud-criar-btn,
-.chat-add-treino-btn,
-.sidebar-acessar-lista-btn,
-.stop-generation-btn,
-.chat-send-btn--active {
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-login::after,
-.btn-start-chat::after,
-.auth-btn::after,
-.auth-google-btn::after,
-.btn-secundario::after,
-.btn-perigo::after,
-.chat-login-modal-btn::after,
-.crud-criar-btn::after,
-.chat-add-treino-btn::after,
-.sidebar-acessar-lista-btn::after,
-.stop-generation-btn::after,
-.chat-send-btn--active::after {
-  content: '';
-  position: absolute;
-  inset: 50% auto auto 50%;
-  width: 120%;
-  aspect-ratio: 1;
-  background: rgba(255,255,255,.35);
-  border-radius: 50%;
-  transform: scale(0);
-  opacity: 0;
-  pointer-events: none;
-  translate: -50% -50%;
-}
-
-.btn-login:active::after,
-.btn-start-chat:active::after,
-.auth-btn:active::after,
-.auth-google-btn:active::after,
-.btn-secundario:active::after,
-.btn-perigo:active::after,
-.chat-login-modal-btn:active::after,
-.crud-criar-btn:active::after,
-.chat-add-treino-btn:active::after,
-.sidebar-acessar-lista-btn:active::after,
-.stop-generation-btn:active::after,
-.chat-send-btn--active:active::after {
-  animation: btnRipple .5s ease-out forwards;
-}
-
-/* --- Hover: elevação suave --- */
-.btn-login,
-.btn-start-chat,
-.crud-criar-btn,
-.chat-add-treino-btn,
-.sidebar-acessar-lista-btn {
-  transition: background .18s ease, transform .18s ease, box-shadow .18s ease;
-}
-
-.btn-login:hover,
-.btn-start-chat:hover,
-.crud-criar-btn:hover,
-.chat-add-treino-btn:hover,
-.sidebar-acessar-lista-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0,0,0,.14);
-}
-
-.btn-login:active,
-.btn-start-chat:active,
-.crud-criar-btn:active,
-.chat-add-treino-btn:active,
-.sidebar-acessar-lista-btn:active {
-  transform: translateY(0) scale(0.97);
-  box-shadow: none;
-}
-
-/* --- Auth btn principal: shimmer no hover --- */
-.auth-btn {
-  transition: background .18s ease, transform .18s ease, box-shadow .18s ease;
-  background-size: 200% auto;
-}
-
-.auth-btn:not(:disabled):hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(25,156,255,.35);
-  background-image: linear-gradient(
-    90deg,
-    var(--brand-blue) 0%,
-    #57c0ff 48%,
-    var(--brand-blue) 100%
-  );
-  background-size: 200% auto;
-  animation: btnShimmer .9s linear infinite;
-}
-
-.auth-btn:not(:disabled):active {
-  transform: scale(0.97);
-  box-shadow: none;
-}
-
-/* --- Botão de perigo: shake sutil no hover --- */
-.btn-perigo {
-  transition: background .18s ease, transform .18s ease, box-shadow .18s ease;
-}
-.btn-perigo:not(:disabled):hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(239,68,68,.28);
-}
-.btn-perigo:not(:disabled):active {
-  transform: scale(0.96);
-  box-shadow: none;
-}
-
-/* --- Botão secundário: borda animada --- */
-.btn-secundario {
-  transition: background .18s ease, border-color .18s ease, transform .18s ease;
-}
-.btn-secundario:hover {
-  transform: translateY(-1px);
-  border-color: var(--brand-blue);
-  color: var(--brand-blue);
-}
-.btn-secundario:active { transform: scale(0.97); }
-
-/* --- Chat modal login btn --- */
-.chat-login-modal-btn {
-  transition: background .18s ease, transform .18s ease, box-shadow .18s ease;
-}
-.chat-login-modal-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(25,156,255,.3);
-}
-
-/* --- Botão de envio: pulse quando ativo --- */
-.chat-send-btn--active {
-  transition: background .18s ease, transform .18s ease, box-shadow .18s ease;
-}
-.chat-send-btn--active:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 14px rgba(0,0,0,.18);
-}
-.chat-send-btn--active:active {
-  transform: scale(0.92);
-}
-
-/* --- Botões de ícone (sidebar, navbar) --- */
-.sidebar-icon-btn,
-.navbar-notif-btn,
-.navbar-hamburger,
-.chat-input-icon-btn,
-.crud-acao-btn {
-  transition: background .18s ease, color .18s ease, transform .18s ease;
-}
-.sidebar-icon-btn:hover,
-.navbar-notif-btn:hover,
-.navbar-hamburger:hover,
-.chat-input-icon-btn:hover {
-  transform: scale(1.1);
-}
-.crud-acao-btn:hover { transform: scale(1.12); }
-.crud-acao-btn:active { transform: scale(0.95); }
-
-/* --- Stop generation btn --- */
-.stop-generation-btn {
-  transition: background .18s ease, color .18s ease, transform .18s ease, box-shadow .18s ease;
-}
-.stop-generation-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0,0,0,.1);
-}
-
-/* --- Auth Google btn --- */
-.auth-google-btn:not(:disabled) {
-  transition: background .18s ease, transform .18s ease, box-shadow .18s ease;
-}
-.auth-google-btn:not(:disabled):hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0,0,0,.1);
-}
-.auth-google-btn:not(:disabled):active { transform: scale(0.97); }
-

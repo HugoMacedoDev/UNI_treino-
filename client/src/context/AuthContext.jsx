@@ -9,7 +9,7 @@ export function AuthProvider({ children }) {
 }
 
 export function useAuth() {
-  const { hydrated, token, usuario, setToken, setUsuario, clearAll } = useConfigStore();
+  const { token, usuario, setToken, setUsuario, clearAll } = useConfigStore();
 
   /**
    * Login real — POST /v1/account/login
@@ -31,21 +31,10 @@ export function useAuth() {
     if (!accessToken) throw new Error('Token não recebido do servidor.');
 
     setToken(accessToken);
-    localStorage.removeItem('unitreino_guest_message_count');
 
     // Salva dados básicos do usuário (email do form) enquanto o backend
     // não retorna os dados completos no token JWT
     setUsuario({ email, nome: email.split('@')[0] });
-
-    return accessToken;
-  }
-
-  function loginWithToken(accessToken, usuarioGoogle) {
-    if (!accessToken) throw new Error('Token nao recebido do servidor.');
-
-    setToken(accessToken);
-    setUsuario(usuarioGoogle);
-    localStorage.removeItem('unitreino_guest_message_count');
 
     return accessToken;
   }
@@ -56,11 +45,9 @@ export function useAuth() {
 
   return {
     user: usuario,
-    hydrated,
     isLoggedIn: !!token,
     token,
     login,
-    loginWithToken,
     logout,
   };
 }

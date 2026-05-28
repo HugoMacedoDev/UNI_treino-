@@ -17,7 +17,6 @@ api.interceptors.request.use(
     const { token } = useConfigStore.getState();
 
     const baseURL = import.meta.env.VITE_URL_API_NODE;
-    console.log(baseURL);
 
     // BaseURL apenas do configStore
     if (baseURL) {
@@ -48,9 +47,6 @@ api.interceptors.request.use(
         config.params = { payload: krip.encrypt(config.params) };
       }
     }
-
-    console.log("BaseURL carregada:", import.meta.env.VITE_API_URL);
-    console.log("Config Final:", config.baseURL + config.url);
 
     return config;
   },

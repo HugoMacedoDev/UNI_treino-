@@ -3,25 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../components/Logo';
 import { api } from '../../lib/api';
 
-/**
- * Recuperação de senha — 2 etapas:
- *
- * Etapa 1: usuário informa o e-mail → POST /v1/account/resetPassword/sendCode
- *          Backend envia o código para o e-mail.
- *
- * Etapa 2: usuário informa o código recebido + nova senha + confirmação
- *          → POST /v1/account/resetPassword
- *          Campos esperados pelo backend: { code, password, confirmPassword }
- *
- * NOTA BACKEND: o ResetCodeValidator ainda usa código fixo "123456".
- * Quando o banco de dados estiver integrado, isso será substituído
- * pelo token salvo em tokenRedefinicaoSenha.
- */
 function RecuperarSenha() {
   const navigate = useNavigate();
   const [etapa, setEtapa] = useState(1);
   const [email, setEmail] = useState('');
-  const [form, setForm] = useState({ code: '', password: '', confirmPassword: '' });
+  const [form, setForm] = useState({ token: '', senha: '', confirmPassword: '' });
   const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -30,7 +16,6 @@ function RecuperarSenha() {
     setErro('');
   }
 
-  // ── Etapa 1: enviar código ──────────────────────────────────────────────────
   async function handleEnviarCodigo(e) {
     e.preventDefault();
     if (!email) { setErro('Informe seu e-mail.'); return; }
@@ -41,39 +26,47 @@ function RecuperarSenha() {
       setEtapa(2);
       setErro('');
     } catch (err) {
-      setErro(err.message || 'Não foi possível enviar o código. Verifique o e-mail e tente novamente.');
+      const mensagemErro = err.response?.data?.error || err.message || 'Não foi possível enviar o código.';
+      setErro(mensagemErro);
     } finally {
       setLoading(false);
     }
   }
 
-  // ── Etapa 2: redefinir senha ────────────────────────────────────────────────
   async function handleRedefinir(e) {
     e.preventDefault();
-    if (!form.code || !form.password || !form.confirmPassword) {
+    
+    if (!form.token || !form.senha || !form.confirmPassword) {
       setErro('Preencha todos os campos.');
       return;
     }
-    if (form.password !== form.confirmPassword) {
+    if (form.senha !== form.confirmPassword) {
       setErro('As senhas não coincidem.');
       return;
     }
-    if (form.password.length < 12) {
-      setErro('A nova senha deve ter no mínimo 12 caracteres.');
+
+    const regexSenha = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
+    if (!regexSenha.test(form.senha)) {
+      setErro('A senha deve conter pelo menos 8 caracteres, incluindo letras e números.');
       return;
     }
 
     setLoading(true);
     try {
-      await api.post('/v1/account/resetPassword', {
+      const resp = await api.post('/v1/account/resetPassword', {
         email,
-        code: form.code,
-        password: form.password,
-        confirmPassword: form.confirmPassword,
+        senha: form.senha,
+        token: form.token,
       });
+
+      if (resp.data.result.error) {
+        throw new Error(resp.data.result.error);
+      }
+
       navigate('/login', { state: { senhaRedefinida: true } });
     } catch (err) {
-      setErro(err.message || 'Código inválido ou expirado. Tente novamente.');
+        console.log(err)
+      setErro(err);
     } finally {
       setLoading(false);
     }
@@ -86,7 +79,6 @@ function RecuperarSenha() {
           <Logo size={48} />
         </div>
 
-        {/* ── Etapa 1 ── */}
         {etapa === 1 && (
           <>
             <h1 className="auth-title">Recuperar senha</h1>
@@ -122,7 +114,6 @@ function RecuperarSenha() {
           </>
         )}
 
-        {/* ── Etapa 2 ── */}
         {etapa === 2 && (
           <>
             <h1 className="auth-title">Redefinir senha</h1>
@@ -132,28 +123,28 @@ function RecuperarSenha() {
 
             <form className="auth-form" onSubmit={handleRedefinir} noValidate>
               <div className="auth-field">
-                <label className="auth-label" htmlFor="code">Código de recuperação</label>
+                <label className="auth-label" htmlFor="token">Código de recuperação</label>
                 <input
-                  id="code"
-                  name="code"
+                  id="token"
+                  name="token"
                   type="text"
                   className="auth-input"
                   placeholder="Digite o código recebido"
-                  value={form.code}
+                  value={form.token}
                   onChange={handleFormChange}
                   autoComplete="one-time-code"
                 />
               </div>
 
               <div className="auth-field">
-                <label className="auth-label" htmlFor="password">Nova senha</label>
+                <label className="auth-label" htmlFor="senha">Nova senha</label>
                 <input
-                  id="password"
-                  name="password"
+                  id="senha"
+                  name="senha"
                   type="password"
                   className="auth-input"
-                  placeholder="Mínimo 12 caracteres"
-                  value={form.password}
+                  placeholder="Mínimo 8 caracteres (letras e números)"
+                  value={form.senha}
                   onChange={handleFormChange}
                   autoComplete="new-password"
                 />

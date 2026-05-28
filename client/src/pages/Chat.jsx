@@ -11,29 +11,25 @@ const MOCK_TREINOS = [
   { id: '1', titulo: 'Upper completo' },
   { id: '2', titulo: 'Costa e ombro' },
   { id: '3', titulo: 'Legday completo' },
-  { id: '4', titulo: 'Peito e tríceps' },
+  { id: '4', titulo: 'Peito e triceps' },
 ];
 
-const GUEST_MESSAGE_LIMIT = 30;
-const GUEST_MESSAGE_COUNT_KEY = 'unitreino_guest_message_count';
-const REDIRECT_AFTER_LOGIN_KEY = 'unitreino_redirect_after_login';
+const GUEST_CHAT_LIMIT = 30;
+const GUEST_CHAT_COUNT_KEY = 'unitreino_guest_chat_count';
 
-function getGuestMessageCount() {
-  const count = Number(localStorage.getItem(GUEST_MESSAGE_COUNT_KEY));
-  return Number.isFinite(count) ? count : 0;
+function getGuestChatCount() {
+  return Number(localStorage.getItem(GUEST_CHAT_COUNT_KEY) || 0);
 }
 
-function incrementGuestMessageCount() {
-  const nextCount = getGuestMessageCount() + 1;
-  localStorage.setItem(GUEST_MESSAGE_COUNT_KEY, String(nextCount));
-  return nextCount;
+function setGuestChatCount(count) {
+  localStorage.setItem(GUEST_CHAT_COUNT_KEY, String(count));
 }
 
 function StopButton({ onClick }) {
   return (
-    <button className="stop-generation-btn" onClick={onClick} aria-label="Parar geração">
+    <button className="stop-generation-btn" onClick={onClick} aria-label="Parar geracao">
       <span className="stop-square" aria-hidden="true" />
-      Parar geração
+      Parar geracao
     </button>
   );
 }
@@ -42,19 +38,18 @@ function Chat() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { hydrated, isLoggedIn } = useAuth();
+  const { isLoggedIn } = useAuth();
 
   const [messages, setMessages] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [loginPopupOpen, setLoginPopupOpen] = useState(false);
   const [ultimaMsgBot, setUltimaMsgBot] = useState(null);
+  const [showLoginRequired, setShowLoginRequired] = useState(false);
 
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
   const timeoutRef = useRef(null);
-  // Guarda contra duplo disparo do StrictMode em dev
   const firstMsgSentRef = useRef(false);
 
   useEffect(() => {
@@ -77,11 +72,18 @@ function Chat() {
     };
   }, []);
 
-  async function sendMessage(text, retryBotId = null) {
-    if (!hydrated) return;
+  useEffect(() => {
+    if (isLoggedIn) {
+      localStorage.removeItem(GUEST_CHAT_COUNT_KEY);
+      setShowLoginRequired(false);
+    } else if (getGuestChatCount() >= GUEST_CHAT_LIMIT) {
+      setShowLoginRequired(true);
+    }
+  }, [isLoggedIn]);
 
-    if (!isLoggedIn && !retryBotId && getGuestMessageCount() >= GUEST_MESSAGE_LIMIT) {
-      setLoginPopupOpen(true);
+  async function sendMessage(text, retryBotId = null) {
+    if (!isLoggedIn && !retryBotId && getGuestChatCount() >= GUEST_CHAT_LIMIT) {
+      setShowLoginRequired(true);
       return;
     }
 
@@ -89,10 +91,17 @@ function Chat() {
       setMessages((prev) => [...prev, {
         id: `user-${Date.now()}`, tipo: 'usuario', conteudo: text
       }]);
+
+      if (!isLoggedIn) {
+        const nextCount = getGuestChatCount() + 1;
+        setGuestChatCount(nextCount);
+        if (nextCount >= GUEST_CHAT_LIMIT) {
+          setShowLoginRequired(true);
+        }
+      }
     }
 
     const botId = retryBotId ?? `bot-${Date.now()}`;
-
     setMessages((prev) => {
       const already = prev.find((m) => m.id === botId);
       if (already) return prev.map((m) =>
@@ -104,41 +113,41 @@ function Chat() {
     setIsGenerating(true);
     setUltimaMsgBot(null);
     abortControllerRef.current = new AbortController();
-    timeoutRef.current = setTimeout(() => abortControllerRef.current?.abort(), 20000);
+    timeoutRef.current = setTimeout(() => abortControllerRef.current?.abort(), 30000);
 
     try {
-      const response = await api.post('/v1/mensagem', {
-        mensagem: text,
-      }, {
-        signal: abortControllerRef.current.signal,
-      });
+      // POST para /v1/mensagem com o texto da mensagem no body
+      const response = await api.post(
+        '/v1/mensagem',
+        { mensagem: text },
+        { signal: abortControllerRef.current.signal }
+      );
 
+      // responseHandler retorna { Mensagem: { Resposta: "..." }, mensagem: { msg: "100..." } }
       const conteudo =
-        response.data?.Resposta ??
+        response.data?.Mensagem?.Resposta ??
         response.data?.mensagem?.conteudo ??
-        response.data?.dados ??
         'Sem resposta do servidor.';
 
       setMessages((prev) =>
         prev.map((m) => m.id === botId ? { ...m, conteudo, loading: false } : m)
       );
       setUltimaMsgBot(botId);
-      if (!isLoggedIn && !retryBotId) {
-        incrementGuestMessageCount();
-      }
     } catch (err) {
       const wasCanceled = err.name === 'AbortError' || err.name === 'CanceledError';
-      const errorMessage =
-        err?.response?.data?.mensagem?.detalhe ||
-        err?.response?.data?.mensagem?.conteudo ||
-        err?.message ||
-        'Ocorreu uma falha de comunicacao. Tente novamente.';
+      const detalhe = wasCanceled
+        ? 'A resposta demorou demais e foi interrompida. Tente novamente.'
+        : err.response?.data?.message ||
+          err.response?.data?.mensagem?.detalhe ||
+          err.response?.data?.mensagem?.msg ||
+          err.message ||
+          'Nao foi possivel enviar a mensagem.';
 
       setMessages((prev) =>
         prev.map((m) => m.id === botId
           ? {
               ...m,
-              conteudo: wasCanceled ? 'Tempo limite excedido. Tente novamente.' : errorMessage,
+              conteudo: detalhe,
               loading: false,
               error: true,
               onRetry: () => sendMessage(text, botId),
@@ -159,20 +168,14 @@ function Chat() {
     setMessages((prev) =>
       prev.map((m, i) =>
         i === prev.length - 1 && m.tipo === 'bot' && m.loading
-          ? { ...m, loading: false, conteudo: m.conteudo || '[geração interrompida]' }
+          ? { ...m, loading: false, conteudo: m.conteudo || '[geracao interrompida]' }
           : m
       )
     );
   }
 
   function handleAdicionarTreino() {
-    // TODO: lógica de salvar treino sugerido pela IA
     alert('Treino adicionado! (TODO: integrar com POST /v1/treinos)');
-  }
-
-  function handleLoginRequired() {
-    sessionStorage.setItem(REDIRECT_AFTER_LOGIN_KEY, '/novo-chat');
-    navigate('/login');
   }
 
   return (
@@ -200,7 +203,6 @@ function Chat() {
             {messages.map((msg) => (
               <div key={msg.id}>
                 <ChatMessage message={msg} />
-                {/* Botão "Adicionar treino" aparece após a última resposta do bot — logado */}
                 {isLoggedIn && msg.id === ultimaMsgBot && msg.tipo === 'bot' && !msg.loading && !msg.error && (
                   <div className="chat-add-treino-area">
                     <button
@@ -225,27 +227,25 @@ function Chat() {
           <div className="chat-input-area">
             <ChatInput
               onSend={(text) => sendMessage(text)}
-              disabled={!hydrated || isGenerating}
+              disabled={isGenerating || showLoginRequired}
             />
           </div>
         </main>
       </div>
 
-      {loginPopupOpen && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="login-required-title">
-          <div className="modal-card">
-            <h2 id="login-required-title" className="modal-title">
-              Faca login para enviar mensagens.
-            </h2>
+      {showLoginRequired && !isLoggedIn && (
+        <div className="modal-overlay auth-required-overlay" role="dialog" aria-modal="true" aria-labelledby="auth-required-title">
+          <div className="modal-card auth-required-card">
+            <h2 className="modal-title" id="auth-required-title">Entre para continuar</h2>
             <p className="modal-texto">
-              Voce atingiu o limite de 30 mensagens como visitante. Faca login para continuar conversando com a IA.
+              Voce atingiu o limite de 30 mensagens gratuitas. Faca login ou crie uma conta para continuar usando o chat.
             </p>
-            <div className="modal-acoes">
-              <button className="btn-secundario" onClick={() => setLoginPopupOpen(false)}>
-                Permanecer desconectado
+            <div className="modal-acoes auth-required-actions">
+              <button className="btn-secundario" type="button" onClick={() => navigate('/cadastro')}>
+                Criar conta
               </button>
-              <button className="chat-login-modal-btn" onClick={handleLoginRequired}>
-                Fazer login
+              <button className="auth-required-login-btn" type="button" onClick={() => navigate('/login')}>
+                Log-in
               </button>
             </div>
           </div>

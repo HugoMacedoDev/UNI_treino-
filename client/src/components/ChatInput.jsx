@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 /* icones */
 function IcImage() {
@@ -58,6 +58,12 @@ function ChatInput({ onSend, disabled = false, placeholder = 'Como posso te ajud
 
   const hasText = value.trim().length > 0;
 
+  useEffect(() => {
+    if (!disabled) {
+      textareaRef.current?.focus();
+    }
+  }, [disabled]);
+
   function submit() {
     const text = value.trim();
     if (!text || disabled) return;
@@ -65,6 +71,7 @@ function ChatInput({ onSend, disabled = false, placeholder = 'Como posso te ajud
     setValue('');
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
+      textareaRef.current.focus();
     }
   }
 

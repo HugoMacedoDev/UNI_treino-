@@ -1,41 +1,10 @@
-# UNI Treino
+Orientação das pastas
 
-Aplicação fullstack para gerenciamento de treinos, com front-end em React e back-end em Node.js / Express.
+* client: É a pasta do projeto front-end
+* server: É a pasta do projeto back-end
 
-## Estrutura do projeto
+[Colocar diagrama de classes aqui]
 
-* `client/` - front-end em Vite + React
-* `server/` - API Node.js com rotas de conta e chat
+[Colocar diagrama de sequência aqui]
 
-## Como executar
-
-1. No terminal do back-end:
-   ```powershell
-   cd server
-   npm install
-   npm start
-   ```
-
-2. No terminal do front-end:
-   ```powershell
-   cd client
-   npm install
-   npm run dev
-   ```
-
-## Principais funcionalidades
-
-* Cadastro, login e recuperação de senha
-* Validação de campos e envio de e-mail de redefinição
-* Chat e gerenciamento de treinos
-
-## Tecnologias
-
-* Front-end: React, Vite
-* Back-end: Node.js, Express
-* Autenticação: JWT
-* Banco de dados: (configuração em `server/config/database.js`)
-
-## Observações
-
-O projeto está configurado em uma estrutura separada entre cliente e servidor para facilitar o desenvolvimento e a implantação.
+[Colocar diagrama de casos de uso aqui]

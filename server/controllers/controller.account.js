@@ -1,144 +1,199 @@
 const { getToken } = require("../middleware/middleware.jwtoken");
-const { google } = require("googleapis");
 const runValidation = require("../handlers/utils");
 const LoginFieldsValidator = require("../handlers/ConcreteHandlers/LoginFieldsValidator");
 const ResetPassFieldsValidator = require("../handlers/ConcreteHandlers/ResetPassFieldsValidator");
-const UserValidator = require("../handlers/ConcreteHandlers/UserValidator");
 const PasswordStrengthValidator = require("../handlers/ConcreteHandlers/PasswordStrengthValidator");
-const UserExistsValidator = require("../handlers/ConcreteHandlers/UserValidator");
 const EmailSentValidator = require("../handlers/ConcreteHandlers/EmailSentValidator");
 const ResetCodeValidator = require("../handlers/ConcreteHandlers/ResetCodeValidator");
 const NotPreviousPasswordValidator = require("../handlers/ConcreteHandlers/NotPreviousPasswordValidator");
 const EmailFormatValidator = require("../handlers/ConcreteHandlers/EmailFormatValidator");
 const PasswordMatchValidator = require("../handlers/ConcreteHandlers/PasswordMatchValidator");
 const Account = require("../models/model.account");
-const { hashPassword } = require("../config/auth");
-const {
-  default: sendResetPasswordEmail,
-} = require("../models/model.mailer");
+const { hashPassword, verifyPassword } = require("../config/auth");
+const { default: sendResetPasswordEmail } = require("../models/model.mailer");
 const crypto = require("crypto");
+const bcrypt = require('bcryptjs');
 
-function getGoogleOAuthClient() {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri =
-    process.env.GOOGLE_CALLBACK_URL ||
-    `http://localhost:${process.env.NODE_API_PORT}/v1/account/google/callback`;
+async function postLoginController(body) {
+    const { email, password } = body;
 
-  if (!clientId || !clientSecret) {
-    throw {
-      msg: "500",
-      campo: "google",
-      conteudo: "Credenciais do Google nao configuradas.",
-    };
-  }
+    // 1. Valida campos obrigatorios e formato do e-mail (sincrono)
+    const fieldChain = new LoginFieldsValidator();
+    fieldChain.setNext(new EmailFormatValidator());
+    const fieldResult = fieldChain.handle({ email, password });
+    if (!fieldResult.success) throw fieldResult;
 
-  return new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+    // 2. Busca usuario no banco
+    const user = await Account.findOne({ email });
+    if (!user) {
+        throw { success: false, message: "Usuario ou senha invalidos.", campo: "email" };
+    }
+
+    // 3. Compara a senha usando bcrypt (verifyPassword = bcrypt.compare)
+    const senhaValida = await verifyPassword(password, user.senha);
+    if (!senhaValida) {
+        throw { success: false, message: "Usuario ou senha invalidos.", campo: "senha" };
+    }
+
+    // 4. Gera o JWT com dados do usuario no payload
+    const accessToken = getToken({
+        id: String(user._id),
+        email: user.email,
+        nome: user.nome,
+    });
+
+    return { success: true, accessToken };
 }
 
-async function postLoginController(req, res) {
-  const loginChain = new LoginFieldsValidator();
-  loginChain.setNext(new EmailFormatValidator()).setNext(new UserValidator());
+async function postRegisterController(req) {
+    let { nome, email, senha } = req;
 
-  res = runValidation(
-    loginChain,
-    req,
-    (onSuccess = () => {
-      return { success: true, accessToken: getToken({}) };
-    }),
-  );
+    const hash = await hashPassword(senha);
+    senha = hash;
+    const account = new Account({ nome, email, senha });
 
-  return res;
+    const result = await account.save();
+
+    return result;
+
 }
 
-async function getGoogleAuthUrlController() {
-  const oauth2Client = getGoogleOAuthClient();
+async function postSendResetPasswordEmailController(req) {
+    const { email } = req;
 
-  return oauth2Client.generateAuthUrl({
-    access_type: "offline",
-    prompt: "select_account",
-    scope: ["profile", "email"],
-  });
+    try {
+        const token = crypto.randomBytes(20).toString("hex");
+
+        const tempoValidade = new Date();
+        tempoValidade.setHours(tempoValidade.getHours() + 1);
+
+        const usuario = await Account.findOne({ email });
+
+        if (!usuario) {
+            return {
+                success: true,
+                message: "Se o e-mail informado estiver cadastrado, as instruções de recuperação foram enviadas."
+            };
+        }
+
+        usuario.tokenRedefinicaoSenha = token;
+        usuario.validadeTokenRedefinicaoSenha = tempoValidade;
+        await usuario.save();
+
+        const recipients = [{
+            email: usuario.email,
+            name: usuario.nome
+        }];
+
+        await sendResetPasswordEmail(recipients, token);
+
+        return {
+            success: true,
+            message: "Se o e-mail informado estiver cadastrado, as instruções de recuperação foram enviadas."
+        };
+    } catch (err) {
+        return { error: "Não foi possível redefinir sua senha, tente novamente.", message: err };
+    }
 }
 
-async function getGoogleCallbackController(req, res) {
-  const oauth2Client = getGoogleOAuthClient();
-  const { code } = req.query;
+async function postResetPasswordController(req) {
+    const { email, senha, token } = req;
 
-  if (!code) {
-    throw {
-      msg: "400",
-      campo: "google",
-      conteudo: "Codigo de autorizacao do Google nao informado.",
-    };
-  }
+    try {
+        const regexSenha = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
+        if (!regexSenha.test(senha)) {
+            return {
+                error: "A senha deve conter pelo menos 8 caracteres, incluindo letras e números."
+            };
+        }
 
-  const { tokens } = await oauth2Client.getToken(code);
-  oauth2Client.setCredentials(tokens);
+        const usuario = await Account.findOne({ email });
 
-  const oauth2 = google.oauth2({ auth: oauth2Client, version: "v2" });
-  const { data } = await oauth2.userinfo.get();
+        if (!usuario) {
+            return { error: "Usuário não encontrado ou dados inválidos." };
+        }
 
-  const email = data.email;
-  const nome = data.name || email?.split("@")[0] || "Usuario";
+        if (!usuario.tokenRedefinicaoSenha || usuario.tokenRedefinicaoSenha !== token) {
+            return { error: "Token de redefinição inválido ou já utilizado." };
+        }
 
-  if (!email) {
-    throw {
-      msg: "400",
-      campo: "google",
-      conteudo: "O Google nao retornou um e-mail valido.",
-    };
-  }
+        const agora = new Date();
+        if (usuario.validadeTokenRedefinicaoSenha < agora) {
+            return { error: "Este token expirou. Solicite uma nova recuperação." };
+        }
 
-  return {
-    accessToken: getToken({ email, nome, provider: "google" }),
-    usuario: { email, nome, picture: data.picture || null },
-  };
+        const ehIgualASenhaAnterior = await bcrypt.compare(senha, usuario.senha);
+        if (ehIgualASenhaAnterior) {
+            return { error: "A nova senha não pode ser igual à sua senha atual." };
+        }
+
+        const saltRounds = 10;
+        const novaSenhaCriptografada = await bcrypt.hash(senha, saltRounds);
+
+        usuario.senha = novaSenhaCriptografada;
+        usuario.tokenRedefinicaoSenha = null;
+        usuario.validadeTokenRedefinicaoSenha = null;
+
+        await usuario.save();
+
+        return { success: true, message: "Senha redefinida com sucesso!" };
+
+    } catch (err) {
+        console.error("Erro no postResetPasswordController:", err);
+        return { error: "Cannot reset password, try again", message: err.message || err };
+    }
 }
 
-async function postRegisterController(req, res) {
-  let { nome, email, senha } = req;
+// Nova função: Adicionar Lesão ao Perfil
+async function postAdicionarLesaoController(body, params, req) {
+    const { lesao } = body; // A string da lesão (ex: "Tendinite no ombro (Leve) - Evitar elevação frontal")
+    const userId = req.user.id; // Pegamos o ID do token JWT
 
-  const hash = await hashPassword(senha);
-  senha = hash;
-  console.log(hash);
-  const account = new Account({ nome, email, senha });
+    const usuario = await Account.findById(userId);
+    if (!usuario) {
+        throw { success: false, message: "Usuário não encontrado." };
+    }
 
-  res = await account.save();
+    usuario.lesoes.push(lesao);
+    await usuario.save();
 
-  return res;
+    return { success: true, lesoes: usuario.lesoes };
 }
 
-async function postSendResetPasswordEmailController(req, res) {
-  const { email } = req;
+// Nova função: Remover Lesão do Perfil
+async function deleteRemoverLesaoController(body, params, req) {
+    const { index } = params; // Qual lesão da lista remover
+    const userId = req.user.id;
 
-  try {
-    const token = crypto.randomBytes(20).toString("hex");
-    const now = new Date();
+    const usuario = await Account.findById(userId);
+    if (!usuario) {
+        throw { success: false, message: "Usuário não encontrado." };
+    }
 
-    // Salvar token no banco
+    if (index > -1 && index < usuario.lesoes.length) {
+        usuario.lesoes.splice(index, 1);
+        await usuario.save();
+    }
 
-    return sendResetPasswordEmail(email, token);
-  } catch (err) {
-    return { error: "Cannot reset password, try again", message: err };
-  }
+    return { success: true, lesoes: usuario.lesoes };
 }
 
-async function postResetPasswordController(req, res) {
-  const resetPasswordChain = new ResetCodeValidator();
-  resetPasswordChain
-    .setNext(new PasswordMatchValidator())
-    .setNext(new NotPreviousPasswordValidator())
-    .setNext(new PasswordStrengthValidator());
-
-  return runValidation(resetPasswordChain, req);
+// Nova Função: Listar Lesões
+async function getListarLesoesController(body, params, req) {
+    const userId = req.user.id;
+    const usuario = await Account.findById(userId);
+    if (!usuario) {
+        throw { success: false, message: "Usuário não encontrado." };
+    }
+    return { success: true, lesoes: usuario.lesoes };
 }
 
 module.exports = {
-  postLoginController,
-  getGoogleAuthUrlController,
-  getGoogleCallbackController,
-  postSendResetPasswordEmailController,
-  postResetPasswordController,
-  postRegisterController,
+    postLoginController,
+    postSendResetPasswordEmailController,
+    postResetPasswordController,
+    postRegisterController,
+    postAdicionarLesaoController, // EXPORTANDO AQUI
+    deleteRemoverLesaoController, // EXPORTANDO AQUI
+    getListarLesoesController // EXPORTANDO AQUI
 };

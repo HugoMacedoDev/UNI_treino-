@@ -14,7 +14,7 @@ const MOCK_TREINOS = [
 ];
 
 function NovoChat() {
-  const { hydrated, isLoggedIn } = useAuth();
+  const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -51,10 +51,7 @@ function NovoChat() {
             <Logo size={64} />
           </div>
           <div className="novo-chat-input-area">
-            <ChatInput
-              onSend={handleFirstMessage}
-              disabled={!hydrated}
-            />
+            <ChatInput onSend={handleFirstMessage} />
           </div>
         </main>
       </div>
